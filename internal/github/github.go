@@ -3,6 +3,7 @@
 package github
 
 import (
+	"bytes"
 	"context"
 	"encoding/json"
 	"errors"
@@ -55,11 +56,18 @@ func NewClient() (*Client, error) {
 
 // StatusError is a non-2xx response.
 type StatusError struct {
-	Code int
-	Path string
+	Method string
+	Code   int
+	Path   string
 }
 
-func (e *StatusError) Error() string { return fmt.Sprintf("GET %s: HTTP %d", e.Path, e.Code) }
+func (e *StatusError) Error() string {
+	m := e.Method
+	if m == "" {
+		m = http.MethodGet
+	}
+	return fmt.Sprintf("%s %s: HTTP %d", m, e.Path, e.Code)
+}
 
 func isStatus(err error, codes ...int) bool {
 	var se *StatusError
@@ -81,43 +89,63 @@ func (c *Client) get(ctx context.Context, pathOrURL string) ([]byte, string, err
 	if !strings.HasPrefix(u, "http") {
 		u = c.Base + pathOrURL
 	}
+	body, h, err := c.do(ctx, http.MethodGet, u, nil, nil)
+	if err != nil {
+		return nil, "", err
+	}
+	next := ""
+	if m := linkNext.FindStringSubmatch(h.Get("Link")); m != nil {
+		next = m[1]
+	}
+	return body, next, nil
+}
+
+// do sends one request, waiting out a rate limit of up to 90 seconds
+// (at most three times). retry, when set, also treats a 2xx body as
+// rate limited (GraphQL reports its primary limit with HTTP 200).
+func (c *Client) do(ctx context.Context, method, u string, payload []byte, retry func([]byte) bool) ([]byte, http.Header, error) {
 	for attempt := 0; ; attempt++ {
-		req, err := http.NewRequestWithContext(ctx, http.MethodGet, u, nil)
+		var rd io.Reader
+		if payload != nil {
+			rd = bytes.NewReader(payload)
+		}
+		req, err := http.NewRequestWithContext(ctx, method, u, rd)
 		if err != nil {
-			return nil, "", err
+			return nil, nil, err
 		}
 		req.Header.Set("Accept", "application/vnd.github+json")
 		req.Header.Set("X-GitHub-Api-Version", "2022-11-28")
+		if payload != nil {
+			req.Header.Set("Content-Type", "application/json")
+		}
 		if c.token != "" && sameHost(u, c.Base) {
 			req.Header.Set("Authorization", "Bearer "+c.token)
 		}
 		resp, err := c.HTTP.Do(req)
 		if err != nil {
-			return nil, "", err
+			return nil, nil, err
 		}
 		body, err := io.ReadAll(io.LimitReader(resp.Body, 64<<20))
 		_ = resp.Body.Close()
 		if err != nil {
-			return nil, "", err
+			return nil, nil, err
 		}
-		if (resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests) && attempt < 3 {
+		limited := resp.StatusCode == http.StatusForbidden || resp.StatusCode == http.StatusTooManyRequests ||
+			(resp.StatusCode/100 == 2 && retry != nil && retry(body))
+		if limited && attempt < 3 {
 			if wait := retryAfter(resp.Header); wait > 0 && wait <= 90*time.Second {
 				select {
 				case <-time.After(wait):
 					continue
 				case <-ctx.Done():
-					return nil, "", ctx.Err()
+					return nil, nil, ctx.Err()
 				}
 			}
 		}
 		if resp.StatusCode/100 != 2 {
-			return nil, "", &StatusError{Code: resp.StatusCode, Path: redactURL(u)}
+			return nil, nil, &StatusError{Method: method, Code: resp.StatusCode, Path: redactURL(u)}
 		}
-		next := ""
-		if m := linkNext.FindStringSubmatch(resp.Header.Get("Link")); m != nil {
-			next = m[1]
-		}
-		return body, next, nil
+		return body, resp.Header, nil
 	}
 }
 
