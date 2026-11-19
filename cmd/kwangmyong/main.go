@@ -48,7 +48,7 @@ var helpSections = []struct {
 		{"scan [path]", "files, file names, commit and tag metadata"},
 		{"scan --history [path]", "plus every deleted blob still in history"},
 		{"scan --staged", "only what the next commit adds"},
-		{"github <owner>[/repo]", "issues, PRs, comments, reviews, releases, gists"},
+		{"github <owner>[/repo]", "issues, PRs, comments, reviews, releases, discussions, gists"},
 	}},
 	{"CLEANUP", []helpLine{
 		{"plan [path]", "draft a git filter-repo rewrite and a checklist"},
@@ -483,12 +483,13 @@ func finish(stdout io.Writer, format string, st report.Style, strict bool, findi
 func cmdGitHub(args []string, stdout, stderr io.Writer) (int, error) {
 	fs := flag.NewFlagSet("github", flag.ContinueOnError)
 	fs.SetOutput(stderr)
-	usageFor(fs, stderr, "github [flags] <owner>[/repo]", "Sweep what git filter-repo cannot reach: issues, PRs, comments, reviews,\nreleases, gists and repository metadata on GitHub.")
+	usageFor(fs, stderr, "github [flags] <owner>[/repo]", "Sweep what git filter-repo cannot reach: issues, PRs, comments, reviews,\nreleases, discussions, gists and repository metadata on GitHub.")
 	var c common
 	c.register(fs)
 	forks := fs.Bool("forks", false, "include forks")
 	archived := fs.Bool("archived", true, "include archived repositories")
 	reviews := fs.Bool("reviews", true, "scan pull request review bodies (one request per PR)")
+	discussions := fs.Bool("discussions", true, "scan discussions, their comments and replies")
 	gists := fs.Bool("gists", true, "scan the owner's gists")
 	format := fs.String("format", "text", "output format: text, json or sarif (sarif is always masked)")
 	reveal := fs.Bool("reveal", false, "print raw matched values (local terminal only)")
@@ -515,7 +516,7 @@ func cmdGitHub(args []string, stdout, stderr io.Writer) (int, error) {
 	s := &github.Scanner{C: client, M: m}
 	gopt := github.Options{
 		Owner: owner, Repo: repo, IncludeForks: *forks, IncludeArchived: *archived,
-		Reviews: *reviews, Gists: *gists, Handles: id.Logins,
+		Reviews: *reviews, Discussions: *discussions, Gists: *gists, Handles: id.Logins,
 	}
 	meta := report.Meta{Target: "github.com/" + fs.Arg(0), Looked: looked(id)}
 	if *format == "text" && interactive(stdout, *noTUI) {

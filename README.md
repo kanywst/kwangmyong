@@ -55,7 +55,7 @@ On the demo repository, gitleaks 8.30.1 says `no leaks found`.
 kwangmyong scan [path]             # files, file names, commit and tag metadata
 kwangmyong scan --history [path]   # plus every deleted blob still reachable
 kwangmyong scan --staged           # only what the next commit adds
-kwangmyong github <owner>[/repo]   # issues, PRs, comments, reviews, releases, gists
+kwangmyong github <owner>[/repo]   # issues, PRs, comments, reviews, releases, discussions, gists
 kwangmyong plan [path]             # git filter-repo inputs and a checklist
 kwangmyong identity                # who is being looked for, masked
 kwangmyong init                    # write the profile
@@ -130,7 +130,7 @@ values = ["^example$"]
 
 ## GitHub
 
-`kwangmyong github` reads `GH_TOKEN`, `GITHUB_TOKEN` or `gh auth token`. Forks are skipped unless `--forks`; `--reviews=false` skips review bodies, which cost one request per PR.
+`kwangmyong github` reads `GH_TOKEN`, `GITHUB_TOKEN` or `gh auth token`. Forks are skipped unless `--forks`; `--reviews=false` skips review bodies, which cost one request per PR. Discussions, their comments and replies are read over GraphQL in repositories that have them turned on; `--discussions=false` skips them. A token that cannot read discussions stops the sweep instead of reporting nothing.
 
 ## Rewriting history
 
@@ -272,7 +272,6 @@ Releases before v0.4.0 were published from `0-draft/kwangmyong`, which the regex
 
 - Wikis (scan the wiki repository directly)
 - Actions logs and artifacts
-- Discussions
 
 ## License
 

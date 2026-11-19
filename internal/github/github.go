@@ -1,5 +1,5 @@
 // Package github scans issues, pull requests, comments, reviews, releases,
-// gists and repository metadata, and checks former usernames.
+// discussions, gists and repository metadata, and checks former usernames.
 package github
 
 import (
@@ -203,6 +203,7 @@ type Options struct {
 	IncludeForks    bool
 	IncludeArchived bool
 	Reviews         bool     // one extra request per pull request
+	Discussions     bool     // GraphQL; only repositories with discussions enabled
 	Gists           bool     // the owner's gists (secret ones too when it is you)
 	Handles         []string // former usernames to check for takeover
 	Concurrency     int
@@ -226,6 +227,7 @@ type repo struct {
 	Fork        bool     `json:"fork"`
 	Archived    bool     `json:"archived"`
 	HasIssues   bool     `json:"has_issues"`
+	HasDiscuss  bool     `json:"has_discussions"`
 }
 
 type issue struct {
@@ -420,6 +422,11 @@ func (s *Scanner) repo(ctx context.Context, r repo, opt Options) error {
 	})
 	if err != nil && !isStatus(err, http.StatusNotFound, http.StatusGone) {
 		return err
+	}
+	if opt.Discussions && r.HasDiscuss {
+		if err := s.discussions(ctx, r.FullName); err != nil && !gone(err) {
+			return err
+		}
 	}
 	return nil
 }
