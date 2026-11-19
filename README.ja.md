@@ -55,7 +55,7 @@ secret scanner はそのまま使ってください。答えている問いが�
 kwangmyong scan [path]             # ファイル、ファイル名、commit と tag のメタデータ
 kwangmyong scan --history [path]   # 加えて、まだ辿れる削除済み blob すべて
 kwangmyong scan --staged           # 次の commit で増える分だけ
-kwangmyong github <owner>[/repo]   # issue、PR、コメント、レビュー、release、gist
+kwangmyong github <owner>[/repo]   # issue、PR、コメント、レビュー、release、discussion、gist
 kwangmyong plan [path]             # git filter-repo の入力とチェックリスト
 kwangmyong identity                # 何を探すか (マスク済み)
 kwangmyong init                    # プロファイルを書く
@@ -130,7 +130,7 @@ values = ["^example$"]
 
 ## GitHub
 
-`kwangmyong github` は `GH_TOKEN`、`GITHUB_TOKEN`、`gh auth token` の順に token を読みます。fork は `--forks` を付けない限り飛ばします。レビュー本文は PR ごとに 1 リクエストかかるので、`--reviews=false` で省けます。
+`kwangmyong github` は `GH_TOKEN`、`GITHUB_TOKEN`、`gh auth token` の順に token を読みます。fork は `--forks` を付けない限り飛ばします。レビュー本文は PR ごとに 1 リクエストかかるので、`--reviews=false` で省けます。Discussions はコメントと返信まで、有効になっているリポジトリだけ GraphQL で読みます。`--discussions=false` で省けます。Discussions を読めない token のときは、0 件と報告せずに止まります。
 
 ## 履歴の書き換え
 
@@ -272,7 +272,6 @@ v0.4.0 より前の release は `0-draft/kwangmyong` から出ていたので、
 
 - wiki (wiki のリポジトリを直接 scan してください)
 - Actions のログと artifact
-- Discussions
 
 ## ライセンス
 
